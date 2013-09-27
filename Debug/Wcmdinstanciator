@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#random network weight instanciation cmd generator
+
+usage()
+{
+/bin/cat << EOF
+usage: $0 options
+
+Generate a random NN cmd 0x02 with supplied param   
+
+OPTIONS:
+   -h      Show this message
+   -i	   nbr of inputs
+   -n      nbr of neurons
+   -l      layer number
+EOF
+}
+
+NBRINPUT=
+NBRNEURON=
+LN=
+
+while getopts “hi:n:c:l:” OPTION
+do
+     case $OPTION in
+         h)
+             usage
+             exit 1
+             ;;
+         i)
+             NBRINPUT=$OPTARG
+             ;;
+         n)
+             NBRNEURON=$OPTARG
+             ;;
+	 l)
+	     LN=$OPTARG
+	     ;;
+         ?)
+             usage
+             exit
+             ;;
+     esac
+done
+export LN
+cat /dev/urandom | tr -dc '0-9' | fold -w 5 |head -n $[NBRINPUT*NBRNEURON] | awk 'BEGIN{srand(srand()+rand())}{if(rand()<=0.5){ORS=";";print "-0."$0}else{ORS=";";print "0."$0}}' | awk '{print "2;" ENVIRON["LN"] ";" $0"EOI"}'

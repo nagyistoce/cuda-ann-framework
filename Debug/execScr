@@ -1,0 +1,90 @@
+#!/bin/bash
+
+
+usage()
+{
+/bin/cat << EOF
+usage: $0 options
+
+Instanciate a NN network using conf file parameter 
+The directory should be Writable !
+
+OPTIONS:
+   -h      Show this message
+   -f	   file path /home/nn/boite
+   -n      exec file name NN_cuda
+   -c	   config file name
+EOF
+}
+
+# --- trap fct --- 
+onExit(){
+	#ensure NN memory is freed on exit 
+	sleep 1
+	echo "8;EOI" > $$.fif
+	sleep 1
+	rm -f $$.fif;
+	killall $NAME;
+}
+
+TARGET=
+NAME=
+CONFIG=
+
+while getopts “hf:n:c:” OPTION
+do
+     case $OPTION in
+         h)
+             usage
+             exit 1
+             ;;
+         f)
+             TARGET=$OPTARG
+             ;;
+         n)
+             NAME=$OPTARG
+             ;;
+	 c)  
+	     CONFIG=$OPTARG
+	     ;; 
+         ?)
+             usage
+             exit
+             ;;
+     esac
+done
+
+if [[ -z $TARGET ]] || [[ -z $NAME ]] || [[ -z $CONFIG ]]
+then
+     usage
+     exit 1
+fi
+
+cd $TARGET
+mkfifo $$.fif
+
+#set a trap to delete the fifo and kill NN on exit
+trap onExit EXIT
+
+#NN is started with its stdin plugged into {pid#}.fif and its output to a log file 
+./$NAME < $$.fif > NN_log &
+sleep 1
+#open a terminal to output the NN data
+/usr/bin/xterm -u8 -e tail -n 50 -f NN_log &
+#redirect stdout to the fifo
+exec >$$.fif
+#sending cmd to NN
+sleep 1
+cat $CONFIG
+./Wcmdinstanciator -i 10 -n 16 -l 0 
+./Wcmdinstanciator -i 16 -n 24 -l 1 
+./Wcmdinstanciator -i 24 -n 36 -l 2 
+./Wcmdinstanciator -i 36 -n 64 -l 3 
+./Icmdinstanciator -i 10
+tail -f runfile
+
+
+
+
+
+

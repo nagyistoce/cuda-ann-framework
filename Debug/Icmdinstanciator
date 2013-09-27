@@ -1,0 +1,38 @@
+#!/bin/bash
+
+#random network weight instanciation cmd generator
+
+usage()
+{
+/bin/cat << EOF
+usage: $0 options
+
+Generate a random NN cmd 0x03 with supplied param   
+
+OPTIONS:
+   -h      Show this message
+   -i	   nbr of inputs
+EOF
+}
+
+NBRINPUT=
+LN=
+
+while getopts “hi:n:c:l:” OPTION
+do
+     case $OPTION in
+         h)
+             usage
+             exit 1
+             ;;
+         i)
+             NBRINPUT=$OPTARG
+             ;;
+         ?)
+             usage
+             exit
+             ;;
+     esac
+done
+
+cat /dev/urandom | tr -dc '0-9' | fold -w 5 |head -n $NBRINPUT | awk '{ORS=";";print "0."$0;}' | awk '{print "3;"$0"EOI"}'
