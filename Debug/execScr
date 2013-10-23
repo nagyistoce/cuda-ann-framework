@@ -21,10 +21,17 @@ EOF
 onExit(){
 	#ensure NN memory is freed on exit 
 	sleep 1
+	#Restore stdout to normal state 
+	exec 1>&6 6>&-
 	echo "8;EOI" > $$.fif
 	sleep 1
 	rm -f $$.fif;
-	killall $NAME;
+	if [ "$(pidof $NAME)" ]
+	then
+	    killall $NAME;
+	else
+	    printf "\n ---- > Process %s terminated normally < ---- \n" "$NAME"
+	fi
 }
 
 TARGET=
@@ -66,25 +73,26 @@ mkfifo $$.fif
 #set a trap to delete the fifo and kill NN on exit
 trap onExit EXIT
 
+#Printf current started parameter and miscelaneous to terminal
+printf "The neural computing framework will start using the config file:\n\t--->%s%s\n\n" "$TARGET" "$CONFIG"
+NUMLAYER=`awk -F";" '{print $2}' $CONFIG`
+NUMINPUT=`awk -F";" '{print $3}' $CONFIG`
+NUMNEURPERLAYER=`cut -d ';' -f4-$(($NUMLAYER+3)) $CONFIG`
+printf "Network geometry: %s inputs %s Layers\n" "$NUMINPUT" "$NUMLAYER"
+echo $NUMNEURPERLAYER | awk 'BEGIN{FS=";"}{for(i=1;i<=NF;i++)print "\tNeurons on layer "i-1" = "$i}'
+printf "\n\vAppend command to %srunfile to control the ANN\n" "$TARGET"
+printf "To see command reference :\n ---> \$echo \"7;EOI;\" >> %srunfile && tail -n 45 %sNN_log\n" "$TARGET" "$TARGET"
 #NN is started with its stdin plugged into {pid#}.fif and its output to a log file 
 ./$NAME < $$.fif > NN_log &
 sleep 1
 #open a terminal to output the NN data
 /usr/bin/xterm -u8 -e tail -n 50 -f NN_log &
 #redirect stdout to the fifo
+exec 6>&1
 exec >$$.fif
 #sending cmd to NN
 sleep 1
-cat $CONFIG
-./Wcmdinstanciator -i 10 -n 16 -l 0 
-./Wcmdinstanciator -i 16 -n 24 -l 1 
-./Wcmdinstanciator -i 24 -n 36 -l 2 
-./Wcmdinstanciator -i 36 -n 64 -l 3 
-./Icmdinstanciator -i 10
+cat $CONFIG 
+./Icmdinstanciator -i $NUMINPUT
+(echo $NUMLAYER";"$NUMNEURPERLAYER | awk 'BEGIN{FS=";"}{for(i=1;i<NF;i++)system("./Wcmdinstanciator -i "$i" -n "$(i+1)" -l "i-1)}')
 tail -f runfile
-
-
-
-
-
-
