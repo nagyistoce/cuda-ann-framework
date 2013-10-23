@@ -144,7 +144,7 @@ void computeNet(mPtrVect *master){
 			CUDA_CHECK_RETURN(cudaEventRecord(stop,NULL));
 			CUDA_CHECK_RETURN(cudaEventSynchronize(stop));
 			CUDA_CHECK_RETURN(cudaEventElapsedTime(&ms, start, stop));
-			fprintf(stdout,"Layer %i computed in %f μs using %i Blocks\n",i,ms*1000,numB.x);
+			fprintf(stdout,"Layer %i computed in %f ��s using %i Blocks\n",i,ms*1000,numB.x);
 		}
 		else{
 
@@ -181,7 +181,7 @@ void computeNet(mPtrVect *master){
 			CUDA_CHECK_RETURN(cudaEventRecord(stop,NULL));
 			CUDA_CHECK_RETURN(cudaEventSynchronize(stop));
 			CUDA_CHECK_RETURN(cudaEventElapsedTime(&ms, start, stop));
-			fprintf(stdout,"OUT layer computed in %f μs\n",ms*1000);
+			fprintf(stdout,"OUT layer computed in %f ��s\n",ms*1000);
 		}
 	}
 	CUDA_CHECK_RETURN(cudaMemcpy(((I_Grid *)(master->hout))->st_ptr, ((I_Grid *)(master->dout))->st_ptr, sizeof(float) * master->NeurPerLayer[master->nbrlayer -1], cudaMemcpyDeviceToHost));
@@ -303,5 +303,28 @@ void randomInitI(mPtrVect *master){
 	CUDA_CHECK_RETURN(cudaMemcpy(master->hInVect[0]->st_ptr,data,sizeof(float)*master->nbrInputL1,cudaMemcpyHostToHost));
 	CUDA_CHECK_RETURN(cudaMemcpy(master->dInVect[0]->st_ptr,master->hInVect[0]->st_ptr,sizeof(float)*master->nbrInputL1,cudaMemcpyHostToDevice));
 	free(data);
+}
+
+void backProp(mPtrVect *master, float *err){
+
+	float *buff;
+	dim3 numB(1,1,1);
+	dim3 numT(1,1,1);
+
+	if(master->computeProp != NULL){
+		numB.x = master->computeProp[master->nbrlayer-1];
+		numT.x =(int)ceil((float)master->NeurPerLayer[master->nbrlayer-1]/master->computeProp[master->nbrlayer-1]);
+	}
+	else{
+		numB.x = 1;
+		numT.x = master->NeurPerLayer[master->nbrlayer-1];
+	}
+	//Starting kernel correct weight for each neurons on last layer
+	CUDA_CHECK_RETURN(cudaMalloc(&buff,sizeof(float)*master->hWVect[master->nbrlayer-1]->cols));
+	backPropW<<<numB,numT>>>(master->dWVect[master->nbrlayer-1]->st_ptr,master->dInVect[master->nbrlayer-1]->st_ptr,((I_Grid *)(master->dout))->st_ptr,buff, master->hWVect[master->nbrlayer-1]->cols,master->NeurPerLayer[master->nbrlayer-1],err);
+	CUDA_CHECK_RETURN(cudaFree(buff));
+	//Computing error vect for next layer
+
+
 }
 

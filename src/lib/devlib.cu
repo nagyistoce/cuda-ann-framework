@@ -5,33 +5,24 @@ __global__ void backPropW(void *wGrid, void *iVect, void *outVect,void *acc, int
 	iwMul(wGrid, iVect,outVect,col,nbr);
 	__syncthreads();
 	correctW(outVect,wGrid,iVect,acc,col,nbr,err);
-
+	//overwrite the Input vector with accumulated values
+	for(int e=0;e<col;iVect[e]=acc[e++]);
 }
 // correct the weight vector
 __device__ void correctW(void *iwMult,void* wGrid,void *iVect,void *acc,int col,int nbr,float *err){
 	int index = index = blockIdx.x * blockDim.x + threadIdx.x;
+	float tmp;
 	if(index < nbr){
 		for(int e =0;e<col;e++){
-			((float *)acc)[e]=((float *)iwMult)[index]*(1-((float *)iwMult)[index])*((float *)iVect)[e];
-			((float *)wGrid)[e+col*index]+=((float *)acc)[e]*err[e];
+			tmp=((float *)iwMult)[index]*(1-((float *)iwMult)[index])*((float *)iVect)[e];
+			// every threads accumulate one value
+			((float *)acc)[e]+=tmp;
+			((float *)wGrid)[e+col*index]+=((float *)acc)[e]*err[index];
 			__syncthreads();
 		}
 	}
 }
 
-
-//at this point the outvect should have been overwritten by iwMult and passed as an arg
-//the error vector should be produced by the correctW function call
-__device__ void correctE(void *iwMult,void *iVect ,void *errVect,int col, int nbr ){
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-	if(index < nbr){
-		((float *)iVect)[index] = 0.0f;
-		for(int e =0;e<col;e++){
-			((float *)iVect)[index] += ((float *)errVect)[index + e*col];
-		}
-	}
-}
 
 /*********************************************************************************************************************
  * 									calcLayer
