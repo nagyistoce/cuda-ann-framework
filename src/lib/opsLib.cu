@@ -306,13 +306,10 @@ void randomInitI(mPtrVect *master){
 }
 
 void backProp(mPtrVect *master, float *err){
-
 	float *buff,*buff2;
 	dim3 numB(1,1,1);
 	dim3 numT(1,1,1);
-
 	//Computing error vect for next layer
-
 	for(int e=(master->nbrlayer-1);e>=0;e--){
 		if(master->computeProp != NULL){
 			numB.x = master->computeProp[e];
@@ -324,9 +321,10 @@ void backProp(mPtrVect *master, float *err){
 		}
 		CUDA_CHECK_RETURN(cudaMalloc(&buff,sizeof(float)*master->hWVect[e]->cols));
 		CUDA_CHECK_RETURN(cudaMalloc(&buff2,sizeof(float)*master->hWVect[e]->cols));
-		if(e==(master->nbrlayer-1))
+		if(e==(master->nbrlayer-1)){
 			//Starting kernel correct weight for each neurons on last layer
 			backPropW<<<numB,numT>>>(master->dWVect[e]->st_ptr,master->dInVect[e]->st_ptr,((I_Grid *)(master->dout))->st_ptr,buff, master->hWVect[e]->cols,master->NeurPerLayer[e],err);
+		}
 		else{
 			//go backward in layer and propagate error
 			backPropW<<<numB,numT>>>(master->dWVect[e]->st_ptr,master->dInVect[e]->st_ptr,buff2,buff, master->hWVect[e]->cols,master->NeurPerLayer[e],(float *)(master->dInVect[e+1]->st_ptr));
